@@ -1,5 +1,8 @@
 #include<VirtualWire.h>
 
+#include <nRF24L01.h>
+#include <RF24.h>
+
 const int trigPin = 4;
 const int echoPin = 5;
 const int ledPinY = 2;
@@ -20,6 +23,9 @@ long t_min;
 
 char data[40];
 
+RF24 radio(9, 10); // CE, CSN
+const byte address[6] = "00001";
+
 void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
@@ -27,8 +33,9 @@ void setup() {
   pinMode(ledPinR, OUTPUT);
   pinMode(ledPinG, OUTPUT);
   Serial.begin(9600);
-  vw_set_tx_pin(dataT);
-  vw_setup(2000);
+  setupRadio();
+  //vw_set_tx_pin(dataT);
+  //vw_setup(2000);
   start_time = 0;
   end_time = 0;
   t_max = 2000;
@@ -83,8 +90,17 @@ void loop() {
 
 void send (char *message)
 {
-  vw_send((uint8_t *)message, strlen(message));
-  vw_wait_tx(); // Aguarda o envio de dados
+  //vw_send((uint8_t *)message, strlen(message));
+  //vw_wait_tx(); // Aguarda o envio de dados
+  radio.write(&message, sizeof(message));
+}
+
+void setupRadio ()
+{
+  radio.begin();
+  radio.openWritingPipe(address);
+  radio.setPALevel(RF24_PA_MIN);
+  radio.stopListening();
 }
 
 
