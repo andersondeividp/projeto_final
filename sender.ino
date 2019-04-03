@@ -1,3 +1,4 @@
+
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
@@ -24,8 +25,11 @@ long prev_milles;
 long intervalo;
 int v_led_red;
 
-RF24 radio(7, 8); // CE, CSN
-const byte address[6] = "00001";
+RF24 radio(8,7);  // CE, CSN
+
+unsigned char frequency = 0x1;
+unsigned int no = 2 ;
+unsigned int perimetro = 2;
 
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
@@ -43,7 +47,7 @@ void setup() {
   v_ocupada = 0;  
   v_identificada = 0;
 
-  //SPI.begin();  
+  SPI.begin();  
   mfrc522.PCD_Init();
 
   prev_milles = 0;
@@ -52,14 +56,28 @@ void setup() {
 }
 
 void loop() {  
-  if (mfrc522.PICC_IsNewCardPresent()){        
+
+  if (radio.available()) {
+    char text[32] = "";
+    radio.read(&text, sizeof(text));
+    if (text[0] != '\0'){      
+      if(acceptMessage(text) == 1){        
+        modificarPerimetroMensagem(text);
+        enviarMensagem(text); 
+      }              
+    }
+  }
+    
+  if (mfrc522.PICC_IsNewCardPresent()){       
+     Serial.println("IN...");
     if(v_identificada == 0){
       v_identificada = v_ocupada;
       if(v_identificada == 1)
         enviarMensagemVagaAutorizada();          
     }       
   } 
-  int distance= getDistance();
+  
+  int distance=  ();
   if(distance > 10){   
     long mi = millis();
     if(t_base > 0 && mi < t_base + t_max && mi - t_base_min> t_min){
@@ -117,10 +135,7 @@ void ascenderLuzAmarela(){
 void ascenderLuzVermelha(){
   digitalWrite(LED_PIN_YELLOW,LOW);  
   digitalWrite(LED_PIN_GREEN,LOW);
-  long m = millis(); 
-  //Serial.println(m);
-  //Serial.println(prev_milles);
-  //Serial.println(intervalo);
+  long m = millis();   
   if(v_identificada == 0){    
     if(m - prev_milles > intervalo){
       prev_milles = m;
@@ -144,31 +159,71 @@ void ascenderLuzVerde(){
   digitalWrite(LED_PIN_YELLOW,LOW);    
 }
 
-void enviarMensagemVagaLivre(){
-  const char text[] = "vaga 1 livre";
-  radio.write(&text, sizeof(text));  
+
+void montarMensagem(char msg[]){
+    char text[32] = ".";  
+    char strNo[32] = "";
+    itoa(no,strNo,32);    
+    strcat(text,strNo);    
+    strcat(text,".");    
+    strcat(text,msg);
+    strcpy(msg,text);
 }
 
-void enviarMensagemVagaOcupada(){
-  Serial.println("Enviando...");
-  const char text[] = "vaga 1 ocupada";
-  radio.write(&text, sizeof(text));      
-  Serial.println("Fim");
+void enviarMensagemVagaLivre(){
+  char text[32] = "L";
+  montarMensagem(text);
+  adicionarPerimetroMensagem(text);  
+  enviarMensagem(text);  
+}
+
+void enviarMensagemVagaOcupada(){  
+  char text[32] = "O";
+  montarMensagem(text);
+  adicionarPerimetroMensagem(text);  
+  enviarMensagem(text);
 }
 
 void enviarMensagemVagaAutorizada(){
-  const char text[] = "vaga 1 autorizada";
-  radio.write(&text, sizeof(text));      
+  char text[32] = "A"; 
+  montarMensagem(text);
+  adicionarPerimetroMensagem(text);  
+  enviarMensagem(text);     
 }
 
-void initRadio(){
-  Serial.println("Comunicando...");
-  radio.begin();
-  radio.openWritingPipe(address);
+void initRadio(){  
+  radio.begin();  
+  radio.openReadingPipe(0, frequency);
+  radio.openWritingPipe(frequency);
   radio.setPALevel(RF24_PA_MIN);
+  radio.startListening();  
+}
+
+void enviarMensagem(char text[]){  
+  char textFlush[32] = "HELLO WORLD";
+  strcpy(textFlush,text);
   radio.stopListening();
-  const char text[] = "Contectado";
-  radio.write(&text, sizeof(text));
-  Serial.println("Fim");
+  radio.write(&textFlush, sizeof(textFlush));   
+  radio.startListening();   
+}
+
+
+int acceptMessage(char text[]){
+  char *token = strtok(text,".");
+  int perimetroMensagem = atoi(token);
+  return perimetroMensagem >  perimetro;
+}
+
+void modificarPerimetroMensagem(char text[]){  
+  char *token = strchr(text, '.');
+  strcpy(text,token);
+  adicionarPerimetroMensagem(text);
+}
+
+void adicionarPerimetroMensagem(char text[]){
+  char strPerimetro[32] = "";  
+  itoa(perimetro,strPerimetro,32);  
+  strcat(strPerimetro,text);
+  strcpy(text,strPerimetro);
 }
 
