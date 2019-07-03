@@ -13,58 +13,78 @@
 
 unsigned char frequency = 0x1;
 
+unsigned int no = 1 ;
+unsigned int perimetro = 1;
+const int b_time = 5000; //milleseconds
+
+/*
+unsigned int no = 2;
+unsigned int perimetro = 2;
+const int b_time = 10000; //milleseconds
+*/
+
+int aux_time = 0;
+
 RF24 radio(8,7); // CE, CSN
 
 void setup() {  
   Serial.begin(9600);
-  radio.begin();    
-  radio.openReadingPipe(0, frequency);  
+  radio.begin();  
+  radio.openReadingPipe(0, frequency);
+  radio.openWritingPipe(frequency);
   radio.setPALevel(RF24_PA_MIN);
   radio.startListening();  
-  Serial.println("Waiting...");
 }
 
 void loop() {
   if (radio.available()) {
     char text[32] = "";
     radio.read(&text, sizeof(text));
-    if (text[0] != '\0'){
-      montarMensagem(text);
-      Serial.println(text);                
+    if (text[0] != '\0'){      
+      if(acceptMessage(text) == 1){        
+        modificarPerimetroMensagem(text);
+        enviarMensagem(text); 
+      }              
     }
-  }  
+  }
+  int t = millis();
+  if(t - aux_time > b_time){
+    aux_time = t;
+    char text[32] = ".";  
+    char strNo[32] = "";
+    itoa(no,strNo,32);    
+    strcat(text,strNo);    
+    strcat(text,".");    
+    strcat(text,"L");    
+    adicionarPerimetroMensagem(text);    
+    enviarMensagem(text);
+  }
 }
 
-char montarMensagem(char text[]){
-  char v[32] = "";
-  char s[32] = "";
-
-  int i,np = 0;
-  for(i = 0; i < strlen(text); i++){
-    if(text[i] == '.' ){
-      np++;
-      continue;
-    }      
-    if(np == 0)
-      continue;
-    else if(np == 1)
-      append(v,text[i]);      
-    else
-      append(s,text[i]);        
-  }      
-  if(strcmp(s,"L") == 0)
-    sprintf(text,"VAGA %s LIVRE",v);
-  else if(strcmp(s,"O") == 0)
-    sprintf(text,"VAGA %s OCUPADA",v);
-  else if(strcmp(s,"A") == 0)
-    sprintf(text,"VAGA %s AUTORIZADA",v);  
+void enviarMensagem(char text[]){  
+  char textFlush[32] = "HELLO WORLD";
+  strcpy(textFlush,text);
+  radio.stopListening();
+  radio.write(&textFlush, sizeof(textFlush));   
+  radio.startListening();   
 }
 
 
+int acceptMessage(char text[]){
+  char *token = strtok(text,".");
+  int perimetroMensagem = atoi(token);
+  return perimetroMensagem >  perimetro;
+}
 
-void append(char* s, char c)
-{
-  int len = strlen(s);
-  s[len] = c;
-  s[len+1] = '\0';
+void modificarPerimetroMensagem(char text[]){  
+  char *token = strchr(text, '.');
+  strcpy(text,token);
+  adicionarPerimetroMensagem(text);
+}
+
+void adicionarPerimetroMensagem(char text[]){
+  char strPerimetro[32] = "";  
+  itoa(perimetro,strPerimetro,32);  
+  strcat(strPerimetro,text);
+  strcpy(text,strPerimetro);
 }
