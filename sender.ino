@@ -28,8 +28,8 @@ int v_led_red;
 RF24 radio(8,7);  // CE, CSN
 
 unsigned char frequency = 0x1;
-unsigned int no = 2 ;
-unsigned int perimetro = 2;
+unsigned int no = 3 ;
+unsigned int perimetro = 3;
 
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
@@ -45,7 +45,7 @@ void setup() {
   t_base = 0;
   t_base_min = 0;
   v_ocupada = 0;  
-  v_identificada = 0;
+  v_identificada = 0;  
 
   SPI.begin();  
   mfrc522.PCD_Init();
@@ -60,8 +60,9 @@ void loop() {
   if (radio.available()) {
     char text[32] = "";
     radio.read(&text, sizeof(text));
-    if (text[0] != '\0'){      
-      if(acceptMessage(text) == 1){        
+    if (text[0] != '\0'){ 
+      //Serial.println(text);     
+      if(acceptMessage(text) == 1){               
         modificarPerimetroMensagem(text);
         enviarMensagem(text); 
       }              
@@ -77,7 +78,7 @@ void loop() {
     }       
   } 
   
-  int distance=  ();
+  int distance= getDistance();
   if(distance > 10){   
     long mi = millis();
     if(t_base > 0 && mi < t_base + t_max && mi - t_base_min> t_min){
@@ -167,7 +168,7 @@ void montarMensagem(char msg[]){
     strcat(text,strNo);    
     strcat(text,".");    
     strcat(text,msg);
-    strcpy(msg,text);
+    strcpy(msg,text);    
 }
 
 void enviarMensagemVagaLivre(){
@@ -208,16 +209,24 @@ void enviarMensagem(char text[]){
 }
 
 
-int acceptMessage(char text[]){
-  char *token = strtok(text,".");
-  int perimetroMensagem = atoi(token);
+int acceptMessage(char text[]){  
+  char aux[32];
+  strcpy(aux,text);
+  char *token = strtok(aux,".");  
+  int perimetroMensagem = atoi(token);  
   return perimetroMensagem >  perimetro;
 }
 
 void modificarPerimetroMensagem(char text[]){  
+  /*
   char *token = strchr(text, '.');
   strcpy(text,token);
-  adicionarPerimetroMensagem(text);
+  adicionarPerimetroMensagem(text);  
+  */
+  char strPerimetro[32] = "";  
+  itoa(perimetro,strPerimetro,32);   
+  text[0] = strPerimetro[0];
+  Serial.println(text);
 }
 
 void adicionarPerimetroMensagem(char text[]){
@@ -225,5 +234,5 @@ void adicionarPerimetroMensagem(char text[]){
   itoa(perimetro,strPerimetro,32);  
   strcat(strPerimetro,text);
   strcpy(text,strPerimetro);
-}
 
+}
